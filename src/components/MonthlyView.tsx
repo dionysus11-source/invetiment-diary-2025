@@ -170,7 +170,7 @@ export default function MonthlyView({ records, profits, onDeleteProfit }: Monthl
               <p className={`font-bold ${
                 stats.totalProfit >= 0 ? 'text-green-800' : 'text-red-800'
               }`}>
-                {formatCurrency(stats.totalProfit)}원
+                {formatCurrency(Math.floor(stats.totalProfit))}원
               </p>
             </div>
           </div>
@@ -196,7 +196,7 @@ export default function MonthlyView({ records, profits, onDeleteProfit }: Monthl
                     <span className={`font-bold text-lg ${
                       profit.profit >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {profit.profit >= 0 ? '+' : ''}{formatCurrency(profit.profit)}원
+                      {profit.profit >= 0 ? '+' : ''}{formatCurrency(Math.floor(profit.profit))}원
                     </span>
                     {onDeleteProfit && (
                       <button

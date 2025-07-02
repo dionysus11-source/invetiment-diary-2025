@@ -62,8 +62,8 @@ export default function Home() {
   const tabs = [
     { id: 'upload' as Tab, label: '사진 업로드', icon: Upload },
     { id: 'manual' as Tab, label: '직접 입력', icon: Edit },
-    { id: 'list' as Tab, label: '투자 기록', icon: BarChart },
-    { id: 'monthly' as Tab, label: '월별 조회', icon: BarChart }
+    { id: 'list' as Tab, label: '투자 진행 중', icon: BarChart },
+    { id: 'monthly' as Tab, label: '투자 완료', icon: BarChart }
   ];
 
   return (
