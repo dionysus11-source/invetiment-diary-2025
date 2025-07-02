@@ -16,21 +16,54 @@ export default function MonthlyView({ records, profits, onDeleteProfit }: Monthl
   const getMonthsFromData = () => {
     const monthsSet = new Set<string>();
     
-    // records에서 월 추출
+    console.log('MonthlyView - records:', records);
+    console.log('MonthlyView - profits:', profits);
+    
+    // records에서 월 추출 (미완료 거래)
     records.forEach(record => {
-      const date = new Date(record.date);
-      const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-      monthsSet.add(monthKey);
+      try {
+        const date = new Date(record.date);
+        console.log('Processing record date:', record.date, 'parsed:', date);
+        if (!isNaN(date.getTime())) {
+          const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+          console.log('Adding month from record:', monthKey);
+          monthsSet.add(monthKey);
+        }
+      } catch (error) {
+        console.error('Error processing record date:', record.date, error);
+      }
     });
     
-    // profits에서 월 추출 (매도 날짜 기준)
+    // profits에서 월 추출 (매도 날짜와 매수 날짜 기준)
     profits.forEach(profit => {
-      const date = new Date(profit.sellDate);
-      const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-      monthsSet.add(monthKey);
+      try {
+        // 매도 날짜로 월 추출
+        const sellDate = new Date(profit.sellDate);
+        console.log('Processing profit sellDate:', profit.sellDate, 'parsed:', sellDate);
+        if (!isNaN(sellDate.getTime())) {
+          const sellMonthKey = `${sellDate.getFullYear()}-${(sellDate.getMonth() + 1).toString().padStart(2, '0')}`;
+          console.log('Adding month from profit sellDate:', sellMonthKey);
+          monthsSet.add(sellMonthKey);
+        }
+        
+        // 매수 날짜로도 월 추출
+        if (profit.buyDate) {
+          const buyDate = new Date(profit.buyDate);
+          console.log('Processing profit buyDate:', profit.buyDate, 'parsed:', buyDate);
+          if (!isNaN(buyDate.getTime())) {
+            const buyMonthKey = `${buyDate.getFullYear()}-${(buyDate.getMonth() + 1).toString().padStart(2, '0')}`;
+            console.log('Adding month from profit buyDate:', buyMonthKey);
+            monthsSet.add(buyMonthKey);
+          }
+        }
+      } catch (error) {
+        console.error('Error processing profit dates:', profit, error);
+      }
     });
     
-    return Array.from(monthsSet).sort().reverse(); // 최신월 먼저
+    const months = Array.from(monthsSet).sort().reverse();
+    console.log('Final months list:', months);
+    return months;
   };
 
   const months = getMonthsFromData();

@@ -27,7 +27,6 @@ const initTables = () => {
       exchangeRate REAL NOT NULL,
       wonAmount REAL NOT NULL,
       source TEXT NOT NULL CHECK (source IN ('photo', 'manual')),
-      imageData TEXT,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -94,8 +93,8 @@ export const dbUtils = {
   // 투자 기록 추가
   insertInvestment: (investment: InvestmentRecord) => {
     const stmt = db.prepare(`
-      INSERT INTO investments (id, date, type, foreignAmount, exchangeRate, wonAmount, source, imageData)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO investments (id, date, type, foreignAmount, exchangeRate, wonAmount, source)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
     return stmt.run(
       investment.id,
@@ -104,8 +103,7 @@ export const dbUtils = {
       investment.foreignAmount,
       investment.exchangeRate,
       investment.wonAmount,
-      investment.source,
-      investment.imageData
+      investment.source
     );
   },
 
@@ -155,17 +153,50 @@ export const dbUtils = {
     return stmt.get(id) as InvestmentRecord | undefined;
   },
 
-  // 매칭되는 매수 기록 찾기 (외화 금액만으로 매칭)
+  // 매칭되는 매수 기록 찾기 (외화 금액 오차 허용)
   findMatchingBuyRecord: (sellRecord: InvestmentRecord): InvestmentRecord | undefined => {
+    console.log('=== 매칭 검색 시작 ===');
+    console.log('매도 기록 정보:', {
+      foreignAmount: sellRecord.foreignAmount,
+      date: sellRecord.date,
+      roundedAmount: Math.round(sellRecord.foreignAmount * 100)
+    });
+    
+    // 먼저 모든 USD 사기 기록 조회
+    const allBuyStmt = db.prepare(`SELECT * FROM investments WHERE type = 'USD 사기'`);
+    const allBuyRecords = allBuyStmt.all() as InvestmentRecord[];
+    console.log('데이터베이스의 모든 USD 사기 기록:', allBuyRecords.map(r => ({
+      id: r.id,
+      date: r.date,
+      foreignAmount: r.foreignAmount,
+      roundedAmount: Math.round(r.foreignAmount * 100)
+    })));
+    
+    // 소수점 오차 허용 매칭 쿼리
     const stmt = db.prepare(`
       SELECT * FROM investments 
       WHERE type = 'USD 사기' 
-        AND ROUND(foreignAmount * 100) = ROUND(? * 100)
+        AND ABS(foreignAmount - ?) < 0.01
         AND date < ?
       ORDER BY date ASC
       LIMIT 1
     `);
-    return stmt.get(sellRecord.foreignAmount, sellRecord.date) as InvestmentRecord | undefined;
+    
+    console.log('매칭 쿼리 파라미터:', {
+      targetForeignAmount: sellRecord.foreignAmount,
+      targetRoundedAmount: Math.round(sellRecord.foreignAmount * 100),
+      beforeDate: sellRecord.date
+    });
+    
+    const result = stmt.get(sellRecord.foreignAmount, sellRecord.date) as InvestmentRecord | undefined;
+    console.log('매칭 쿼리 결과:', result ? {
+      id: result.id,
+      date: result.date,
+      foreignAmount: result.foreignAmount,
+      roundedAmount: Math.round(result.foreignAmount * 100)
+    } : 'NO_MATCH');
+    
+    return result;
   },
 
   // 모든 데이터 삭제
@@ -205,8 +236,23 @@ export const dbUtils = {
 
   // profits에 동일한 매수/매도 조합이 있는지 확인
   hasProfitRecord: (buyRecordId: string, sellRecordId: string) => {
+    console.log('=== profit 중복 체크 ===');
+    console.log('체크할 buyRecordId:', buyRecordId);
+    console.log('체크할 sellRecordId:', sellRecordId);
+    
+    // 먼저 모든 profits 조회
+    const allProfits = db.prepare('SELECT * FROM profits').all() as ProfitRecord[];
+    console.log('현재 모든 profits:', allProfits.map(p => ({
+      id: p.id,
+      buyRecordId: p.buyRecordId,
+      sellRecordId: p.sellRecordId,
+      buyDate: p.buyDate,
+      sellDate: p.sellDate
+    })));
+    
     const stmt = db.prepare('SELECT COUNT(*) as count FROM profits WHERE buyRecordId = ? AND sellRecordId = ?');
     const result = stmt.get(buyRecordId, sellRecordId) as { count: number };
+    console.log('중복 체크 결과:', result.count > 0);
     return result.count > 0;
   },
 

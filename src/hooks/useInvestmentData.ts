@@ -32,8 +32,7 @@ export function useInvestmentData() {
 
   const addRecord = async (
     ocrResult: OCRResult,
-    source: 'photo' | 'manual',
-    imageData?: string
+    source: 'photo' | 'manual'
   ): Promise<{ success: boolean; message: string; record?: InvestmentRecord }> => {
     try {
       // OCR 결과를 새로운 API 형식에 맞게 변환
@@ -44,8 +43,7 @@ export function useInvestmentData() {
         exchangeRate: ocrResult.exchangeRate,
         wonAmount: ocrResult.wonAmount !== undefined
           ? ocrResult.wonAmount
-          : Math.floor(ocrResult.foreignAmount * ocrResult.exchangeRate),
-        imageData
+          : Math.floor(ocrResult.foreignAmount * ocrResult.exchangeRate)
       };
 
       const response = await fetch('/api/investments', {

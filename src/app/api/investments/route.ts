@@ -76,17 +76,52 @@ export async function POST(request: NextRequest) {
 
       // USD 팔기인 경우 매칭 확인
       if (record.type === 'USD 팔기') {
-        console.log('USD 팔기 - 매칭 확인 시작');
+        console.log('=== USD 팔기 매칭 프로세스 시작 ===');
+        console.log('매도 기록:', {
+          id: record.id,
+          date: record.date,
+          foreignAmount: record.foreignAmount,
+          exchangeRate: record.exchangeRate,
+          wonAmount: record.wonAmount
+        });
+        
+        // 현재 사용 가능한 매수 기록들 조회
+        const allBuyRecords = dbUtils.getAllInvestments().filter(inv => inv.type === 'USD 사기');
+        console.log('현재 사용 가능한 매수 기록들:', allBuyRecords.map(r => ({
+          id: r.id,
+          date: r.date,
+          foreignAmount: r.foreignAmount,
+          exchangeRate: r.exchangeRate
+        })));
+        
         const matchingBuyRecord = dbUtils.findMatchingBuyRecord(record);
-        console.log('매칭된 매수 기록:', matchingBuyRecord);
+        console.log('매칭 결과:', matchingBuyRecord ? {
+          id: matchingBuyRecord.id,
+          date: matchingBuyRecord.date,
+          foreignAmount: matchingBuyRecord.foreignAmount,
+          exchangeRate: matchingBuyRecord.exchangeRate
+        } : 'NO_MATCH');
         
         if (matchingBuyRecord) {
+          console.log('=== 매칭 성공 - 수익 계산 시작 ===');
+          
           // profits 중복 체크
           const isProfitExist = dbUtils.hasProfitRecord(matchingBuyRecord.id, record.id);
+          console.log('기존 profit 기록 존재 여부:', isProfitExist);
+          
           if (!isProfitExist) {
             // 수익 계산 및 저장
-            const profit = (record.foreignAmount * record.exchangeRate) - (matchingBuyRecord.foreignAmount * matchingBuyRecord.exchangeRate);
-            const profitRate = (profit / (matchingBuyRecord.foreignAmount * matchingBuyRecord.exchangeRate)) * 100;
+            const buyAmount = matchingBuyRecord.foreignAmount * matchingBuyRecord.exchangeRate;
+            const sellAmount = record.foreignAmount * record.exchangeRate;
+            const profit = sellAmount - buyAmount;
+            const profitRate = (profit / buyAmount) * 100;
+
+            console.log('수익 계산:', {
+              buyAmount,
+              sellAmount,
+              profit,
+              profitRate
+            });
 
             const profitRecord: ProfitRecord = {
               id: `profit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -104,19 +139,37 @@ export async function POST(request: NextRequest) {
               createdAt: new Date().toISOString()
             };
 
-            console.log('생성된 수익 기록:', profitRecord);
+            console.log('=== 수익 기록 저장 ===');
+            console.log('저장할 profit 기록:', profitRecord);
             dbUtils.insertProfit(profitRecord);
             console.log('수익 기록 저장 완료');
+            
+            // 매칭된 기록들 삭제
+            console.log('=== 매칭된 원본 기록들 삭제 시작 ===');
+            console.log('삭제할 매수 기록:', matchingBuyRecord.id);
+            console.log('삭제할 매도 기록:', record.id);
+            
+            const buyDeleteResult = dbUtils.deleteInvestment(matchingBuyRecord.id);
+            const sellDeleteResult = dbUtils.deleteInvestment(record.id);
+            
+            console.log('매수 기록 삭제 결과:', buyDeleteResult);
+            console.log('매도 기록 삭제 결과:', sellDeleteResult);
+            console.log('=== 매칭 프로세스 완료 ===');
           } else {
-            console.log('중복된 profit 기록이 이미 존재합니다. 저장하지 않음.');
+            console.log('WARNING: 중복된 profit 기록이 이미 존재합니다. 저장하지 않음.');
           }
-
-          // 매칭된 기록들 삭제
-          console.log('매칭된 기록들 삭제 시작');
-          dbUtils.deleteInvestment(matchingBuyRecord.id);
-          dbUtils.deleteInvestment(record.id);
-          console.log('매칭된 기록들 삭제 완료');
+        } else {
+          console.log('=== 매칭 실패 - 대응하는 매수 기록 없음 ===');
+          console.log('매도 기록은 investments 테이블에 그대로 유지됩니다.');
         }
+      } else {
+        console.log('=== USD 사기 기록 저장 ===');
+        console.log('매수 기록 저장:', {
+          id: record.id,
+          date: record.date,
+          foreignAmount: record.foreignAmount,
+          exchangeRate: record.exchangeRate
+        });
       }
 
       results.push({

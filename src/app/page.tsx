@@ -24,8 +24,8 @@ export default function Home() {
     setTimeout(() => setMessage(''), 5000);
   };
 
-  const handleOCRResult = async (result: OCRResult, imageData: string) => {
-    const response = await addRecord(result, 'photo', imageData);
+  const handleOCRResult = async (result: OCRResult) => {
+    const response = await addRecord(result, 'photo');
     showMessage(response.message, response.success ? 'success' : 'error');
   };
 

@@ -6,7 +6,6 @@ export interface InvestmentRecord {
   exchangeRate: number; // 적용 환율
   wonAmount: number; // 원화 금액
   source: 'photo' | 'manual'; // 입력 방식
-  imageData?: string; // 사진 데이터 (Base64)
   createdAt?: string; // 생성 시간
 }
 

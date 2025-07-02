@@ -7,7 +7,7 @@ import { parseOCRText } from '@/utils/ocrParser';
 import { OCRResult } from '@/types/investment';
 
 interface ImageUploaderProps {
-  onOCRResult: (result: OCRResult, imageData: string) => void;
+  onOCRResult: (result: OCRResult) => void;
   onError: (error: string) => void;
 }
 
@@ -15,7 +15,6 @@ export default function ImageUploader({ onOCRResult, onError }: ImageUploaderPro
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [ocrPreview, setOcrPreview] = useState<OCRResult | null>(null);
-  const [pendingImageData, setPendingImageData] = useState<string | null>(null);
 
   const processImage = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -26,35 +25,23 @@ export default function ImageUploader({ onOCRResult, onError }: ImageUploaderPro
     setIsProcessing(true);
 
     try {
-      // 이미지를 Base64로 변환
-      const reader = new FileReader();
-      const imageDataPromise = new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
-
       // Tesseract.js로 OCR 처리
       const worker = await createWorker('kor+eng');
       const { data: { text } } = await worker.recognize(file);
       await worker.terminate();
 
-      const imageData = await imageDataPromise;
-
       // OCR 결과 파싱
       const ocrResult = parseOCRText(text);
       if (ocrResult) {
         setOcrPreview(ocrResult);
-        setPendingImageData(imageData);
         // onOCRResult는 저장 버튼에서 호출
       } else {
         setOcrPreview(null);
-        setPendingImageData(null);
         onError('이미지에서 필요한 정보를 찾을 수 없습니다. 직접 입력을 사용해주세요.');
       }
     } catch (error) {
       console.error('OCR 처리 오류:', error);
       setOcrPreview(null);
-      setPendingImageData(null);
       onError('이미지 처리 중 오류가 발생했습니다.');
     } finally {
       setIsProcessing(false);
@@ -62,16 +49,14 @@ export default function ImageUploader({ onOCRResult, onError }: ImageUploaderPro
   }, [onError]);
 
   const handleSave = () => {
-    if (ocrPreview && pendingImageData) {
-      onOCRResult(ocrPreview, pendingImageData);
+    if (ocrPreview) {
+      onOCRResult(ocrPreview);
       setOcrPreview(null);
-      setPendingImageData(null);
     }
   };
 
   const handleCancel = () => {
     setOcrPreview(null);
-    setPendingImageData(null);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
